@@ -18,28 +18,34 @@ conn, addr = s.accept() #accepting conection from the client
 print ("\nConnected to by address: {}".format(addr))
 
 def upld():
-    conn.send(bytes("you enter to upld comand","utf-8"))  # sending message to client
-    file_name = conn.recv(BUFFER_SIZE).decode()
-    print(file_name)
-    file_size = conn.recv(BUFFER_SIZE).decode()
-    print(file_size)
-    file = open(file_name, "wb")
-    file_bytes = b" "
-    done = False
-    while not done:
-
-        data = conn.recv(BUFFER_SIZE)
-        if file_bytes[-5:] == b"<END>":
-            done = True
-        else:
-            file_bytes += data
-
-
-
-    file.write(file_bytes)
-    print("salio")
-    file.close()
-
+    # Send message once server is ready to recieve file details
+    conn.send(bytes("you enter to upld comand", "utf-8"))  # sending message to client
+    # Recieve file name length, then file name
+    file_name_size = struct.unpack("h", conn.recv(2))[0]
+    print("size:", file_name_size)
+    file_name = conn.recv(file_name_size)
+    print("name:", file_name)
+    # Send message to let client know server is ready for document content
+    conn.send(bytes("server is ready for document content", "utf-8"))
+    # Recieve file size
+    file_size = struct.unpack("i", conn.recv(4))[0]
+    # Initialise and enter loop to recive file content
+    start_time = time.time()
+    output_file = open(file_name, "wb")
+    # This keeps track of how many bytes we have recieved, so we know when to stop the loop
+    bytes_recieved = 0
+    print("\nRecieving...")
+    while bytes_recieved < file_size:
+        print(bytes_recieved, file_size)
+        l = conn.recv(BUFFER_SIZE)
+        print("L", l)
+        output_file.write(l)
+        bytes_recieved += BUFFER_SIZE
+    output_file.close()
+    print("\nRecieved file: {}".format(file_name))
+    # Send upload performance details
+    conn.send(struct.pack("f", time.time() - start_time))
+    conn.send(struct.pack("i", file_size))
     return
 
 
